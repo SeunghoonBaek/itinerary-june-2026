@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>🗺️ 2026년 6월 오사카 여행 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+
+    #map {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+    }
+
+    /* Day selector panel */
+    .panel {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      background: rgba(15, 15, 30, 0.92);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      width: 280px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .panel.collapsed {
+      transform: translateX(calc(-100% - 20px));
+    }
+
+    .panel.collapsed .toggle-btn {
+      transform: rotate(180deg);
+    }
+
+    /* Floating open button */
+    .open-btn {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 999;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(15, 15, 30, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .open-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .open-btn:hover {
+      background: rgba(99, 132, 255, 0.2);
+    }
+
+    .panel-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .toggle-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 18px;
+      transition: transform 0.3s;
+      padding: 4px;
+    }
+
+    .day-list {
+      padding: 8px;
+    }
+
+    .day-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 3px;
+      background: transparent;
+      border: none;
+      border-radius: 10px;
+      color: #bbb;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12.5px;
+      font-family: inherit;
+      transition: all 0.2s;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .day-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    .day-btn.active {
+      background: rgba(99, 132, 255, 0.15);
+      color: #fff;
+    }
+
+    .day-btn .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid currentColor;
+    }
+
+    .day-btn.active .dot {
+      background: currentColor;
+    }
+
+    .day-btn .day-label {
+      font-weight: 600;
+      min-width: 32px;
+    }
+
+    .day-btn .day-desc {
+      color: #999;
+      font-size: 11px;
+    }
+
+    .day-btn.active .day-desc {
+      color: #ccc;
+    }
+
+    .all-btn {
+      display: block;
+      width: calc(100% - 16px);
+      margin: 4px 8px 8px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .all-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .all-btn.active {
+      background: rgba(99, 132, 255, 0.15);
+      color: #fff;
+      border-color: rgba(99, 132, 255, 0.3);
+    }
+
+    /* Point navigator */
+    .point-nav {
+      margin: 0 8px 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+    }
+
+    .point-nav-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .point-nav-title {
+      font-size: 11px;
+      color: #ddd;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .point-nav-index {
+      font-size: 10px;
+      color: #8fa8ff;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .point-nav-name {
+      font-size: 12px;
+      color: #fff;
+      font-weight: 600;
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+
+    .point-nav-meta {
+      font-size: 10.5px;
+      color: #9aa3b3;
+      line-height: 1.45;
+      min-height: 28px;
+      margin-bottom: 8px;
+    }
+
+    .point-nav-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .point-nav-btn {
+      border: 1px solid rgba(99, 132, 255, 0.35);
+      background: rgba(99, 132, 255, 0.14);
+      color: #dbe4ff;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 7px 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .point-nav-btn:hover:enabled {
+      background: rgba(99, 132, 255, 0.25);
+      color: #fff;
+    }
+
+    .point-nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.04);
+      color: #8a8a8a;
+    }
+
+    .collapsed-nav {
+      position: fixed;
+      bottom: max(44px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      width: max-content;
+      max-width: 300px;
+      background: rgba(15, 15, 30, 0.92);
+      backdrop-filter: blur(16px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      padding: 6px;
+    }
+
+    .collapsed-nav.visible {
+      display: flex;
+    }
+
+    body.collapsed-nav-on .legend {
+      bottom: max(122px, calc(env(safe-area-inset-bottom, 0px) + 104px));
+    }
+
+    .collapsed-nav-status {
+      min-width: 104px;
+      max-width: 110px;
+      text-align: center;
+      font-size: 10.5px;
+      color: #c5d2ff;
+      font-weight: 600;
+      padding: 0 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .collapsed-point-btn {
+      min-width: 72px;
+      padding: 6px 8px;
+      font-size: 10.5px;
+    }
+
+    /* Bottom buttons row */
+    .bottom-btns {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .ctrl-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(15, 15, 30, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      color: #6384ff;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(99, 132, 255, 0.2);
+      transform: scale(1.1);
+    }
+
+    .ctrl-btn.tracking {
+      color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.3);
+    }
+
+    /* Theme switcher */
+    .theme-menu {
+      position: fixed;
+      bottom: 80px;
+      right: 24px;
+      z-index: 1001;
+      background: rgba(15, 15, 30, 0.95);
+      backdrop-filter: blur(16px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      padding: 6px;
+      display: none;
+    }
+
+    .theme-menu.open {
+      display: block;
+    }
+
+    .theme-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: #bbb;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      border-radius: 8px;
+      width: 100%;
+      text-align: left;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .theme-opt:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    .theme-opt.active {
+      background: rgba(99, 132, 255, 0.15);
+      color: #fff;
+    }
+
+    /* Compass */
+    .compass {
+      position: fixed;
+      top: 16px;
+      right: 64px;
+      z-index: 1000;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .compass-rose {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(15, 15, 30, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .compass-n {
+      position: absolute;
+      top: 3px;
+      font-size: 10px;
+      font-weight: 800;
+      color: #ff4444;
+    }
+
+    .compass-s {
+      position: absolute;
+      bottom: 3px;
+      font-size: 8px;
+      font-weight: 600;
+      color: #888;
+    }
+
+    .compass-e {
+      position: absolute;
+      right: 5px;
+      font-size: 8px;
+      font-weight: 600;
+      color: #888;
+    }
+
+    .compass-w {
+      position: absolute;
+      left: 5px;
+      font-size: 8px;
+      font-weight: 600;
+      color: #888;
+    }
+
+    .compass-needle {
+      width: 2px;
+      height: 20px;
+      position: relative;
+    }
+
+    .compass-needle::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -3px;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-bottom: 10px solid #ff4444;
+    }
+
+    .compass-needle::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: -3px;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 10px solid #888;
+    }
+
+    /* Legend */
+    .legend {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 15, 30, 0.9);
+      backdrop-filter: blur(16px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #999;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 4px;
+      white-space: nowrap;
+    }
+
+    .legend-line {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    /* Popup styling */
+    .leaflet-popup-content-wrapper {
+      background: rgba(20, 20, 40, 0.95) !important;
+      color: #e0e0e0 !important;
+      border-radius: 12px !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .leaflet-popup-tip {
+      background: rgba(20, 20, 40, 0.95) !important;
+    }
+
+    .leaflet-popup-content {
+      font-family: inherit !important;
+      font-size: 13px !important;
+      line-height: 1.6 !important;
+    }
+
+    .leaflet-popup-content strong {
+      color: #fff;
+    }
+
+    .popup-time {
+      color: #6384ff;
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .popup-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      margin: 2px 0 4px;
+    }
+
+    .popup-desc {
+      color: #bbb;
+      font-size: 12px;
+    }
+
+    .popup-day {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .popup-link {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 4px 10px;
+      background: rgba(99, 132, 255, 0.15);
+      border: 1px solid rgba(99, 132, 255, 0.3);
+      border-radius: 8px;
+      color: #6384ff;
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .popup-link:hover {
+      background: rgba(99, 132, 255, 0.3);
+      color: #fff;
+    }
+
+    /* Overlapping marker list popup */
+    .overlap-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .overlap-list-title {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .overlap-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      margin: 2px 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .overlap-item:hover {
+      background: rgba(99, 132, 255, 0.12);
+      border-color: rgba(99, 132, 255, 0.25);
+    }
+
+    .overlap-item-icon {
+      font-size: 16px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .overlap-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .overlap-item-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e0e0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .overlap-item-meta {
+      font-size: 10px;
+      color: #888;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .overlap-item-day {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    /* Marker labels */
+    .marker-label {
+      background: rgba(15, 15, 30, 0.85) !important;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 6px !important;
+      padding: 2px 6px !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important;
+      font-size: 10px !important;
+      line-height: 1.4 !important;
+      color: #ccc !important;
+      white-space: nowrap !important;
+      text-align: center !important;
+    }
+
+    .marker-label::before {
+      border-bottom-color: rgba(15, 15, 30, 0.85) !important;
+    }
+
+    .custom-marker {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+    }
+
+    .marker-core {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      background: var(--marker-color);
+      border: 2px solid rgba(255, 255, 255, 0.82);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .marker-order {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: rgba(10, 12, 20, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .marker-start {
+      position: absolute;
+      left: 50%;
+      bottom: -13px;
+      transform: translateX(-50%);
+      font-size: 8px;
+      font-weight: 800;
+      color: #ffe066;
+      letter-spacing: 0.2px;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+      pointer-events: none;
+    }
+
+    .custom-marker.start-point .marker-core {
+      border-color: rgba(255, 224, 102, 0.95);
+      box-shadow: 0 0 0 1px rgba(255, 224, 102, 0.35), 0 3px 10px rgba(0, 0, 0, 0.45);
+    }
+
+    .custom-marker.start-point .marker-order {
+      background: #ffe066;
+      color: #222;
+      border-color: rgba(0, 0, 0, 0.25);
+    }
+
+    .custom-marker.active-point .marker-core {
+      transform: scale(1.18);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4), 0 8px 20px rgba(35, 48, 95, 0.55);
+    }
+
+    .custom-marker.active-point::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      animation: markerPulse 1.5s ease-out infinite;
+    }
+
+    @keyframes markerPulse {
+      0% {
+        opacity: 0.9;
+        transform: scale(0.88);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.25);
+      }
+    }
+
+    .label-time {
+      color: #6384ff;
+      font-weight: 600;
+    }
+
+    .label-name {
+      color: #e0e0e0;
+      font-weight: 500;
+    }
+
+    /* Scrollbar */
+    .panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    @media (max-width: 600px) {
+      .panel {
+        width: 260px;
+        top: 8px;
+        left: 8px;
+        max-height: calc(100vh - 16px);
+      }
+
+      .panel.collapsed {
+        transform: translateX(calc(-100% - 12px));
+      }
+
+      .open-btn {
+        top: 8px;
+        left: 8px;
+      }
+
+      .collapsed-nav {
+        bottom: max(40px, calc(env(safe-area-inset-bottom, 0px) + 22px));
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
+        max-width: calc(100vw - 16px);
+        padding: 5px;
+        gap: 4px;
+      }
+
+      .collapsed-nav-status {
+        min-width: 70px;
+        max-width: 78px;
+        font-size: 10px;
+      }
+
+      .collapsed-point-btn {
+        min-width: 64px;
+        font-size: 10px;
+        padding: 6px 6px;
+      }
+
+      .legend {
+        font-size: 10px;
+        padding: 6px 10px;
+        bottom: 16px;
+        flex-wrap: wrap;
+        max-width: 90vw;
+        justify-content: center;
+      }
+
+      body.collapsed-nav-on .legend {
+        bottom: max(116px, calc(env(safe-area-inset-bottom, 0px) + 96px));
+      }
+
+      .bottom-btns {
+        bottom: 16px;
+        right: 16px;
+      }
+
+      .compass {
+        top: 8px;
+        right: 56px;
+      }
+
+      .theme-menu {
+        bottom: 72px;
+        right: 16px;
+      }
+
+      .leaflet-popup-content-wrapper {
+        max-width: 260px !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+
+  <!-- Day Selector Panel -->
+  <div class="panel" id="panel">
+    <div class="panel-header">
+      <h2>🗺️ 여행 일정</h2>
+      <button class="toggle-btn" onclick="togglePanel()">◀</button>
+    </div>
+    <div class="day-list" id="dayList"></div>
+    <button class="all-btn" id="allBtn" onclick="showAll()">📍 전체 경로 보기</button>
+    <div class="point-nav" id="pointNav">
+      <div class="point-nav-head">
+        <div class="point-nav-title" id="pointNavTitle">포인트 네비게이터</div>
+        <div class="point-nav-index" id="pointNavIndex">-</div>
+      </div>
+      <div class="point-nav-name" id="pointNavName">날짜를 선택하면 시작점부터 순서대로 이동할 수 있습니다.</div>
+      <div class="point-nav-meta" id="pointNavMeta">현재 일정 노드는 지도에서 강조 표시됩니다.</div>
+      <div class="point-nav-btns">
+        <button class="point-nav-btn" id="prevPointBtn" onclick="prevPoint()" disabled>◀ 이전 일정</button>
+        <button class="point-nav-btn" id="nextPointBtn" onclick="nextPoint()" disabled>다음 일정 ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating open button -->
+  <button class="open-btn" id="openBtn" onclick="openPanel()">☰</button>
+  <div class="collapsed-nav" id="collapsedNav">
+    <button class="point-nav-btn collapsed-point-btn" id="collapsedPrevBtn" onclick="prevPoint()" disabled>◀ 이전</button>
+    <div class="collapsed-nav-status" id="collapsedNavStatus">날짜 선택 후 사용</div>
+    <button class="point-nav-btn collapsed-point-btn" id="collapsedNextBtn" onclick="nextPoint()" disabled>다음 ▶</button>
+  </div>
+
+  <!-- Compass -->
+  <div class="compass">
+    <div class="compass-rose">
+      <span class="compass-n">N</span>
+      <span class="compass-s">S</span>
+      <span class="compass-e">E</span>
+      <span class="compass-w">W</span>
+      <div class="compass-needle"></div>
+    </div>
+  </div>
+
+  <!-- Bottom controls -->
+  <div class="bottom-btns">
+    <button class="ctrl-btn" id="themeBtn" onclick="toggleThemeMenu()" title="지도 테마">🎨</button>
+    <button class="ctrl-btn" id="locBtn" onclick="toggleLocation()" title="내 위치">📍</button>
+  </div>
+
+  <!-- Theme menu -->
+  <div class="theme-menu" id="themeMenu">
+    <button class="theme-opt active" data-theme="standard" onclick="setTheme('standard')">🗺️ 기본 (Standard)</button>
+    <button class="theme-opt" data-theme="dark" onclick="setTheme('dark')">🌙 다크 (Dark)</button>
+    <button class="theme-opt" data-theme="satellite" onclick="setTheme('satellite')">🛰️ 위성 (Satellite)</button>
+    <button class="theme-opt" data-theme="terrain" onclick="setTheme('terrain')">⛰️ 지형 (Terrain)</button>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend" id="legend"></div>
+
+  <script>
+    // ── Map Init ──
+    const map = L.map('map', {
+      center: [34.7, 135.5],
+      zoom: 11,
+      zoomControl: false
+    });
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // ── Tile Layers (Themes) ──
+    const tileLayers = {
+      standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+      }),
+      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap · © CARTO',
+        maxZoom: 19
+      }),
+      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri',
+        maxZoom: 18
+      }),
+      terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap',
+        maxZoom: 17
+      })
+    };
+
+    let currentTheme = 'standard';
+    tileLayers.standard.addTo(map);
+
+    function setTheme(name) {
+      map.removeLayer(tileLayers[currentTheme]);
+      tileLayers[name].addTo(map);
+      currentTheme = name;
+
+      // Update active state
+      document.querySelectorAll('.theme-opt').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === name);
+      });
+
+      // Adapt UI colors for light/dark themes
+      const isLight = (name === 'standard' || name === 'terrain');
+      document.querySelectorAll('.marker-label').forEach(el => {
+        if (isLight) {
+          el.style.background = 'rgba(255,255,255,0.9)';
+          el.style.borderColor = 'rgba(0,0,0,0.15)';
+          el.style.color = '#333';
+        } else {
+          el.style.background = 'rgba(15,15,30,0.85)';
+          el.style.borderColor = 'rgba(255,255,255,0.1)';
+          el.style.color = '#ccc';
+        }
+      });
+
+      document.getElementById('themeMenu').classList.remove('open');
+    }
+
+    function toggleThemeMenu() {
+      document.getElementById('themeMenu').classList.toggle('open');
+    }
+
+    // Close theme menu when clicking elsewhere
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#themeBtn') && !e.target.closest('#themeMenu')) {
+        document.getElementById('themeMenu').classList.remove('open');
+      }
+    });
+
+    // ── Day Colors ──
+    const dayColors = [
+      '#ff6b6b', '#ffa94d', '#69db7c', '#6384ff'
+    ];
+
+    // ── POI Data (corrected coordinates) ──
+    const HOTEL = { lat: 34.6654, lng: 135.5023, name: '난바 숙소 (고정)', desc: '난카이·지하철 난바역 인근 · 6/21~6/24' };
+
+    const days = [
+      {
+        id: 1, label: 'D1', date: '6/21 (일)', title: '오사카 도착',
+        color: dayColors[0],
+        center: [34.67, 135.50], zoom: 14,
+        points: [
+          { lat: 37.4602, lng: 126.4407, icon: '✈️', name: '인천공항 출발', time: '09:00', desc: 'ICN T1 · 오전 출발' },
+          { lat: 34.4347, lng: 135.2441, icon: '✈️', name: '간사이공항 도착', time: '10:30', desc: 'KIX T1 · ICOCA 구입' },
+          { lat: 34.6654, lng: 135.5023, icon: '🚆', name: '난바 (라피트)', time: '11:15~12:00', desc: '라피트 α · ¥1,380 · 약 38분' },
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '12:00', desc: '짐 보관 (체크인 15:00)' },
+          { lat: 34.6653, lng: 135.5063, icon: '🍽️', name: '구로몬 시장', time: '12:30', desc: '점심 · 09:00~18:00' },
+          { lat: 34.6687, lng: 135.5013, icon: '🚶', name: '신사이바시·도톤보리', time: '13:30', desc: '글리코 · 호젠지 요코초' },
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '17:00', desc: '체크인' },
+          { lat: 34.6684, lng: 135.5010, icon: '🍽️', name: 'Mizuno (미즈노)', time: '18:00', desc: '오코노미야키 · 11:00~22:00 · 목 휴무' },
+        ]
+      },
+      {
+        id: 2, label: 'D2', date: '6/22 (월)', title: '오사카 시내',
+        color: dayColors[1],
+        center: [34.68, 135.51], zoom: 13,
+        points: [
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '08:00', desc: '출발 · 주유패스 ¥3,500' },
+          { lat: 34.6873, lng: 135.5262, icon: '🏯', name: '오사카성 천수각', time: '09:00', desc: '09:00~18:00 · ¥1,200 · 패스 무료' },
+          { lat: 34.6653, lng: 135.5063, icon: '🍽️', name: '구로몬 시장', time: '12:00', desc: '점심' },
+          { lat: 34.6525, lng: 135.5063, icon: '🗼', name: '츠텐카쿠', time: '13:00', desc: '09:00~21:45 · ¥1,500 · 패스 무료 · 시간 예약' },
+          { lat: 34.7052, lng: 135.4906, icon: '🌆', name: '우메다 스카이 빌딩', time: '15:30', desc: '패스 15:00전 무료 · ¥2,000' },
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '17:30', desc: '난바 복귀 · 저녁' },
+        ]
+      },
+      {
+        id: 3, label: 'D3', date: '6/23 (화)', title: '교토 당일',
+        color: dayColors[2],
+        center: [34.98, 135.77], zoom: 13,
+        points: [
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '07:00', desc: '출발 → 우메다 → JR 교토' },
+          { lat: 34.9671, lng: 135.7727, icon: '⛩️', name: '후시미 이나리', time: '08:30', desc: '24시간 · 무료 · JR 이나리역' },
+          { lat: 34.9949, lng: 135.7850, icon: '🏯', name: '기요미즈데라', time: '11:00', desc: '06:00~18:00 · ¥500' },
+          { lat: 35.0037, lng: 135.7786, icon: '🚶', name: '니넨자카·기온', time: '13:30', desc: '야사카 신사 · 화견소노' },
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '16:30', desc: '난바 숙소 복귀 · 저녁' },
+        ]
+      },
+      {
+        id: 4, label: 'D4', date: '6/24 (수)', title: '귀국',
+        color: dayColors[3],
+        center: [34.67, 135.50], zoom: 13,
+        points: [
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🏨', name: HOTEL.name, time: '08:00', desc: '체크아웃' },
+          { lat: 34.6740, lng: 135.5010, icon: '🛍️', name: '신사이바시 쇼핑', time: '08:30', desc: '돈키호테 · 약국' },
+          { lat: HOTEL.lat, lng: HOTEL.lng, icon: '🍽️', name: '난바 점심', time: '11:00', desc: 'Chibo / Mizuno / Kura Sushi' },
+          { lat: 34.4347, lng: 135.2441, icon: '🚆', name: 'KIX (라피트)', time: '13:00', desc: '난바 → KIX · ¥1,380' },
+          { lat: 34.4347, lng: 135.2441, icon: '✈️', name: 'KIX 출발', time: '15:30', desc: 'ICN 행' },
+          { lat: 37.4602, lng: 126.4407, icon: '✈️', name: '인천공항 도착', time: '17:00', desc: 'ICN' },
+        ]
+      }
+    ];
+
+    // ── Layers ──
+    const layerGroups = {};
+    const routeLines = {};
+    const dayPointEntries = {};
+    let activeDay = null;
+    let activePointIndex = null;
+    let locationMarker = null;
+    let locationCircle = null;
+    let lastLocationLatLng = null;
+    let lastLocationAccuracy = null;
+    let geoHeading = null;
+    let deviceHeading = null;
+    let orientationHandler = null;
+    let orientationActive = false;
+    let watchId = null;
+    let isTracking = false;
+    let panelReopenLockUntil = 0;
+    let daySelectTapLockUntil = 0;
+
+    // Global marker registry for overlap detection
+    const allMarkers = []; // { marker, pt, day, popupHtml, index }
+
+    // Custom icon factory
+    function createIcon(emoji, color, order, isStart = false) {
+      const markerClass = isStart ? 'custom-marker start-point' : 'custom-marker';
+      const startTag = isStart ? '<div class="marker-start">START</div>' : '';
+      return L.divIcon({
+        html: `<div class="${markerClass}" style="--marker-color:${color};">
+      <div class="marker-core">${emoji}</div>
+      <div class="marker-order">${order}</div>
+      ${startTag}
+    </div>`,
+        className: '',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -20]
+      });
+    }
+
+    // Build detail popup HTML
+    function buildDetailHtml(pt, day) {
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lng}`;
+      return `
+      <div>
+        <div class="popup-day" style="background:${day.color}; color:#000;">
+          ${day.label} · ${day.date}
+        </div>
+        <div class="popup-time">${pt.time}</div>
+        <div class="popup-title">${pt.icon} ${pt.name}</div>
+        ${pt.desc ? `<div class="popup-desc">${pt.desc}</div>` : ''}
+        <a class="popup-link" href="${mapsUrl}" target="_blank" rel="noopener">📍 Google Maps에서 보기</a>
+      </div>
+    `;
+    }
+
+    // Find overlapping markers near a given pixel point
+    function findNearbyMarkers(targetMarker, threshold) {
+      const targetPx = map.latLngToContainerPoint(targetMarker.getLatLng());
+      const nearby = [];
+      allMarkers.forEach(entry => {
+        if (!map.hasLayer(entry.marker)) return;
+        const px = map.latLngToContainerPoint(entry.marker.getLatLng());
+        const dist = targetPx.distanceTo(px);
+        if (dist < threshold) {
+          nearby.push(entry);
+        }
+      });
+      return nearby;
+    }
+
+    // Build list popup HTML for overlapping markers
+    function buildListHtml(entries) {
+      const items = entries.map((entry, idx) => `
+        <li class="overlap-item" onclick="showOverlapDetail(${idx})">
+          <div class="overlap-item-icon" style="background:${entry.day.color};">${entry.pt.icon}</div>
+          <div class="overlap-item-info">
+            <div class="overlap-item-name">${entry.pt.name}</div>
+            <div class="overlap-item-meta">
+              <span class="overlap-item-day" style="background:${entry.day.color}; color:#000;">${entry.day.label}</span>
+              <span>${entry.pt.time}</span>
+            </div>
+          </div>
+        </li>
+      `).join('');
+      return `
+        <div>
+          <div class="overlap-list-title">📍 이 위치의 일정 (${entries.length}개)</div>
+          <ul class="overlap-list">${items}</ul>
+        </div>
+      `;
+    }
+
+    // Temp storage for current overlap context
+    let currentOverlapEntries = [];
+    let currentOverlapLatLng = null;
+
+    function showOverlapDetail(idx) {
+      const entry = currentOverlapEntries[idx];
+      if (!entry) return;
+      map.closePopup();
+      setTimeout(() => {
+        if (activeDay !== entry.day.id) {
+          showDay(entry.day.id, entry.index);
+        } else {
+          setActivePoint(entry.day.id, entry.index, { pan: false, openPopup: true });
+        }
+      }, 60);
+    }
+
+    function updatePointNavigator(dayId) {
+      const titleEl = document.getElementById('pointNavTitle');
+      const indexEl = document.getElementById('pointNavIndex');
+      const nameEl = document.getElementById('pointNavName');
+      const metaEl = document.getElementById('pointNavMeta');
+      const prevBtn = document.getElementById('prevPointBtn');
+      const nextBtn = document.getElementById('nextPointBtn');
+
+      if (!dayId || !dayPointEntries[dayId] || dayPointEntries[dayId].length === 0) {
+        titleEl.textContent = '포인트 네비게이터';
+        indexEl.textContent = '-';
+        nameEl.textContent = '날짜를 선택하면 시작점부터 순서대로 이동할 수 있습니다.';
+        metaEl.textContent = '현재 일정 노드는 지도에서 강조 표시됩니다.';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        updateCollapsedNavigator(null);
+        return;
+      }
+
+      const day = days.find(d => d.id === dayId);
+      const entries = dayPointEntries[dayId];
+      const safeIndex = Math.max(0, Math.min(activePointIndex ?? 0, entries.length - 1));
+      const current = entries[safeIndex];
+
+      titleEl.textContent = `${day.label} ${day.date} · ${day.title}`;
+      indexEl.textContent = `${safeIndex + 1} / ${entries.length}${safeIndex === 0 ? ' · 시작점' : ''}`;
+      nameEl.textContent = `${current.pt.icon} ${current.pt.name}`;
+      metaEl.textContent = `${current.pt.time}${current.pt.desc ? ` · ${current.pt.desc}` : ''}`;
+      prevBtn.disabled = safeIndex === 0;
+      nextBtn.disabled = safeIndex === entries.length - 1;
+      updateCollapsedNavigator(dayId);
+    }
+
+    function updateCollapsedNavigator(dayId) {
+      const panelCollapsed = document.getElementById('panel').classList.contains('collapsed');
+      const navEl = document.getElementById('collapsedNav');
+      const statusEl = document.getElementById('collapsedNavStatus');
+      const prevBtn = document.getElementById('collapsedPrevBtn');
+      const nextBtn = document.getElementById('collapsedNextBtn');
+      const bodyEl = document.body;
+
+      if (!panelCollapsed) {
+        navEl.classList.remove('visible');
+        bodyEl.classList.remove('collapsed-nav-on');
+        return;
+      }
+
+      navEl.classList.add('visible');
+      bodyEl.classList.add('collapsed-nav-on');
+
+      if (!dayId || !dayPointEntries[dayId] || dayPointEntries[dayId].length === 0) {
+        statusEl.textContent = '날짜 선택 후 사용';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+      }
+
+      const day = days.find(d => d.id === dayId);
+      const entries = dayPointEntries[dayId];
+      const safeIndex = Math.max(0, Math.min(activePointIndex ?? 0, entries.length - 1));
+
+      statusEl.textContent = `${day.label} ${safeIndex + 1}/${entries.length}`;
+      prevBtn.disabled = safeIndex === 0;
+      nextBtn.disabled = safeIndex === entries.length - 1;
+    }
+
+    function setActivePoint(dayId, pointIndex, options = {}) {
+      const { pan = true, openPopup = false, forceCenter = false, focusZoom = null } = options;
+      const entries = dayPointEntries[dayId];
+      if (!entries || entries.length === 0) return;
+
+      const safeIndex = Math.max(0, Math.min(pointIndex, entries.length - 1));
+      activePointIndex = safeIndex;
+
+      entries.forEach((entry, idx) => {
+        const el = entry.marker.getElement();
+        if (!el) return;
+        const markerNode = el.querySelector('.custom-marker');
+        if (markerNode) {
+          markerNode.classList.toggle('active-point', idx === safeIndex);
+        }
+        entry.marker.setZIndexOffset(idx === safeIndex ? 2600 : (idx === 0 ? 900 : 0));
+      });
+
+      updatePointNavigator(dayId);
+
+      const target = entries[safeIndex];
+      if (!target) return;
+
+      if (pan) {
+        if (typeof focusZoom === 'number') {
+          const zoomLevel = Math.max(map.getZoom(), focusZoom);
+          map.setView(target.marker.getLatLng(), zoomLevel, { animate: true, duration: 0.45 });
+        } else {
+          map.panTo(target.marker.getLatLng(), { animate: true, duration: 0.45 });
+        }
+      }
+      if (openPopup) {
+        map.closePopup();
+        L.popup({ maxWidth: 260, autoPan: !forceCenter })
+          .setLatLng(target.marker.getLatLng())
+          .setContent(target.popupHtml)
+          .openOn(map);
+        if (forceCenter) {
+          setTimeout(() => {
+            map.panTo(target.marker.getLatLng(), { animate: true, duration: 0.35 });
+          }, 30);
+        }
+      }
+    }
+
+    function prevPoint() {
+      if (!activeDay) return;
+      const nextIndex = Math.max(0, (activePointIndex ?? 0) - 1);
+      setActivePoint(activeDay, nextIndex, { pan: true, openPopup: true, forceCenter: true });
+    }
+
+    function nextPoint() {
+      if (!activeDay) return;
+      const entries = dayPointEntries[activeDay];
+      if (!entries || entries.length === 0) return;
+      const nextIndex = Math.min(entries.length - 1, (activePointIndex ?? 0) + 1);
+      setActivePoint(activeDay, nextIndex, { pan: true, openPopup: true, forceCenter: true });
+    }
+
+    // ── Build Layers ──
+    days.forEach(day => {
+      const group = L.layerGroup();
+      const coords = [];
+      dayPointEntries[day.id] = [];
+
+      day.points.forEach((pt, i) => {
+        const marker = L.marker([pt.lat, pt.lng], {
+          icon: createIcon(pt.icon, day.color, i + 1, i === 0)
+        });
+
+        const popupHtml = buildDetailHtml(pt, day);
+        const entry = { marker, pt, day, popupHtml, index: i };
+
+        // Register marker globally for overlap detection
+        allMarkers.push(entry);
+        dayPointEntries[day.id].push(entry);
+
+        // Intercept click for overlap detection
+        marker.on('click', function (e) {
+          L.DomEvent.stopPropagation(e);
+          const nearby = findNearbyMarkers(marker, 30);
+
+          if (nearby.length > 1) {
+            // Multiple markers overlap → show list
+            currentOverlapEntries = nearby;
+            currentOverlapLatLng = marker.getLatLng();
+            L.popup({ maxWidth: 280, className: 'overlap-popup' })
+              .setLatLng(marker.getLatLng())
+              .setContent(buildListHtml(nearby))
+              .openOn(map);
+          } else {
+            // Single marker → show detail directly
+            L.popup({ maxWidth: 260 })
+              .setLatLng(marker.getLatLng())
+              .setContent(popupHtml)
+              .openOn(map);
+          }
+
+          if (activeDay === day.id) {
+            setActivePoint(day.id, i, { pan: false, openPopup: false });
+          }
+        });
+
+        // Permanent label below marker
+        const shortTime = pt.time.split(/[\u2013~-]/)[0].trim();
+        const tooltipHtml = `<span class="label-time">${shortTime}</span><br><span class="label-name">${pt.name}</span>`;
+        marker.bindTooltip(tooltipHtml, {
+          permanent: true,
+          direction: 'bottom',
+          offset: [0, 12],
+          className: 'marker-label'
+        });
+
+        marker.addTo(group);
+        marker.setZIndexOffset(i === 0 ? 900 : 0);
+        coords.push([pt.lat, pt.lng]);
+      });
+
+      // Route line
+      const line = L.polyline(coords, {
+        color: day.color,
+        weight: 3,
+        opacity: 0.7,
+        dashArray: '8, 6',
+        smoothFactor: 1
+      }).addTo(group);
+
+      layerGroups[day.id] = group;
+      routeLines[day.id] = line;
+    });
+
+    function selectDayFromPanel(dayId) {
+      showDay(dayId, 0, false);
+      collapsePanel(true);
+    }
+
+    function handleDayButtonSelect(e, dayId) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const now = Date.now();
+      if (now < daySelectTapLockUntil) return;
+      daySelectTapLockUntil = now + 320;
+      selectDayFromPanel(dayId);
+    }
+
+    // ── Day Selector UI ──
+    const dayListEl = document.getElementById('dayList');
+    days.forEach(day => {
+      const btn = document.createElement('button');
+      btn.className = 'day-btn';
+      btn.dataset.day = day.id;
+      btn.innerHTML = `
+    <div class="dot" style="color:${day.color}"></div>
+    <span class="day-label">${day.label}</span>
+    <span class="day-desc">${day.date} ${day.title}</span>
+  `;
+      btn.addEventListener('pointerup', (e) => handleDayButtonSelect(e, day.id));
+      btn.addEventListener('touchend', (e) => handleDayButtonSelect(e, day.id), { passive: false });
+      btn.addEventListener('click', (e) => handleDayButtonSelect(e, day.id));
+      dayListEl.appendChild(btn);
+    });
+
+    // ── Show Day ──
+    function showDay(dayId, initialPointIndex = 0, closePanelOnSelect = false) {
+      // Day 전환 시 이전 일정 팝업을 항상 닫아 잔상 방지
+      map.closePopup();
+      activeDay = dayId;
+      activePointIndex = initialPointIndex;
+      Object.values(layerGroups).forEach(g => map.removeLayer(g));
+      layerGroups[dayId].addTo(map);
+
+      const day = days.find(d => d.id === dayId);
+      const bounds = routeLines[dayId].getBounds();
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: day.zoom });
+
+      document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.day-btn[data-day="${dayId}"]`).classList.add('active');
+      document.getElementById('allBtn').classList.remove('active');
+      updateLegend(dayId);
+      const startFocusZoom = Math.max(day.zoom, 12);
+      setTimeout(() => {
+        // 날짜 선택 시 해당 일자의 첫 일정(또는 지정 인덱스) 위치를 화면 중앙으로 이동
+        setActivePoint(dayId, initialPointIndex, {
+          pan: true,
+          openPopup: true,
+          forceCenter: true,
+          focusZoom: startFocusZoom
+        });
+      }, 0);
+
+      if (closePanelOnSelect) {
+        collapsePanel(true);
+      }
+    }
+
+    // ── Show All ──
+    function showAll() {
+      // 전체 보기 전환 시에도 기존 팝업 잔상 제거
+      map.closePopup();
+      activeDay = null;
+      activePointIndex = null;
+      Object.values(layerGroups).forEach(g => map.removeLayer(g));
+      days.forEach(day => { layerGroups[day.id].addTo(map); });
+
+      const allCoords = [];
+      days.forEach(day => day.points.forEach(pt => allCoords.push([pt.lat, pt.lng])));
+      map.fitBounds(allCoords, { padding: [50, 50] });
+
+      document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('allBtn').classList.add('active');
+      updateLegend(null);
+      updatePointNavigator(null);
+
+      // Clear active point emphasis when all days are visible.
+      Object.values(dayPointEntries).forEach(entries => {
+        entries.forEach(entry => {
+          const el = entry.marker.getElement();
+          if (!el) return;
+          const markerNode = el.querySelector('.custom-marker');
+          if (markerNode) markerNode.classList.remove('active-point');
+          entry.marker.setZIndexOffset(entry.index === 0 ? 900 : 0);
+        });
+      });
+    }
+
+    // ── Legend ──
+    function updateLegend(dayId) {
+      const legendEl = document.getElementById('legend');
+      if (dayId) {
+        const day = days.find(d => d.id === dayId);
+        legendEl.innerHTML = `
+      <div class="legend-item">
+        <div class="legend-line" style="background:${day.color}"></div>
+        <span>${day.label} ${day.date} — ${day.title}</span>
+      </div>
+    `;
+      } else {
+        legendEl.innerHTML = days.map(d => `
+      <div class="legend-item">
+        <div class="legend-line" style="background:${d.color}"></div>
+        <span>${d.label}</span>
+      </div>
+    `).join('');
+      }
+    }
+
+    function normalizeHeading(deg) {
+      if (!Number.isFinite(deg)) return null;
+      return ((deg % 360) + 360) % 360;
+    }
+
+    function getActiveHeading() {
+      if (Number.isFinite(deviceHeading)) return deviceHeading;
+      if (Number.isFinite(geoHeading)) return geoHeading;
+      return null;
+    }
+
+    function createLocationIcon(headingDeg) {
+      const heading = Number.isFinite(headingDeg) ? headingDeg.toFixed(1) : null;
+      const headingNeedle = heading === null ? '' : `
+        <div style="
+          position:absolute; left:50%; top:50%;
+          width:2px; height:14px; border-radius:2px;
+          background:#fff;
+          transform:translate(-50%, -100%) rotate(${heading}deg);
+          transform-origin:50% 100%;
+          box-shadow:0 0 6px rgba(255,255,255,0.8);
+        "></div>
+        <div style="
+          position:absolute; left:50%; top:50%;
+          width:0; height:0;
+          border-left:5px solid transparent;
+          border-right:5px solid transparent;
+          border-bottom:7px solid #fff;
+          transform:translate(-50%, -135%) rotate(${heading}deg);
+          transform-origin:50% 135%;
+          filter:drop-shadow(0 0 4px rgba(255,255,255,0.75));
+        "></div>
+      `;
+
+      return L.divIcon({
+        html: `<div style="position:relative; width:28px; height:28px;">
+          <div style="
+            position:absolute; left:50%; top:50%;
+            width:18px; height:18px; border-radius:50%;
+            background:#4285f4; border:3px solid #fff;
+            transform:translate(-50%, -50%);
+            box-shadow:0 0 12px rgba(66,133,244,0.6);
+          "></div>
+          ${headingNeedle}
+        </div>`,
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+    }
+
+    function applyLocationVisuals() {
+      if (!locationMarker || !lastLocationLatLng) return;
+      locationMarker.setIcon(createLocationIcon(getActiveHeading()));
+      locationMarker.setLatLng(lastLocationLatLng);
+      if (locationCircle && Number.isFinite(lastLocationAccuracy)) {
+        locationCircle.setLatLng(lastLocationLatLng).setRadius(lastLocationAccuracy);
+      }
+    }
+
+    async function startOrientationTracking() {
+      if (!window.DeviceOrientationEvent || orientationActive) return;
+
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const state = await DeviceOrientationEvent.requestPermission();
+          if (state !== 'granted') return;
+        } catch (err) {
+          return;
+        }
+      }
+
+      orientationHandler = (event) => {
+        let heading = null;
+        if (typeof event.webkitCompassHeading === 'number') {
+          heading = event.webkitCompassHeading;
+        } else if (typeof event.alpha === 'number') {
+          heading = 360 - event.alpha;
+        }
+        const normalized = normalizeHeading(heading);
+        if (!Number.isFinite(normalized)) return;
+        deviceHeading = normalized;
+        applyLocationVisuals();
+      };
+
+      window.addEventListener('deviceorientationabsolute', orientationHandler, true);
+      window.addEventListener('deviceorientation', orientationHandler, true);
+      orientationActive = true;
+    }
+
+    function stopOrientationTracking() {
+      if (!orientationActive || !orientationHandler) return;
+      window.removeEventListener('deviceorientationabsolute', orientationHandler, true);
+      window.removeEventListener('deviceorientation', orientationHandler, true);
+      orientationActive = false;
+      orientationHandler = null;
+    }
+
+    // ── My Location ──
+    async function toggleLocation() {
+      const btn = document.getElementById('locBtn');
+      if (isTracking) {
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        stopOrientationTracking();
+        if (locationMarker) map.removeLayer(locationMarker);
+        if (locationCircle) map.removeLayer(locationCircle);
+        lastLocationLatLng = null;
+        lastLocationAccuracy = null;
+        geoHeading = null;
+        deviceHeading = null;
+        locationMarker = null; locationCircle = null;
+        isTracking = false;
+        btn.classList.remove('tracking');
+        btn.innerHTML = '📍';
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        alert('이 브라우저에서는 위치 추적을 지원하지 않습니다.');
+        return;
+      }
+
+      isTracking = true;
+      btn.classList.add('tracking');
+      btn.innerHTML = '🟢';
+      startOrientationTracking();
+
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const acc = pos.coords.accuracy;
+          const heading = normalizeHeading(pos.coords.heading);
+          if (Number.isFinite(heading)) geoHeading = heading;
+          lastLocationLatLng = [lat, lng];
+          lastLocationAccuracy = acc;
+
+          if (locationMarker) {
+            applyLocationVisuals();
+          } else {
+            locationMarker = L.marker(lastLocationLatLng, {
+              icon: createLocationIcon(getActiveHeading()),
+              zIndexOffset: 2000
+            }).addTo(map).bindPopup('📍 내 위치');
+            locationCircle = L.circle(lastLocationLatLng, {
+              radius: acc, color: '#4285f4', fillColor: '#4285f4',
+              fillOpacity: 0.1, weight: 1
+            }).addTo(map);
+            map.setView(lastLocationLatLng, 15);
+          }
+        },
+        (err) => {
+          stopOrientationTracking();
+          alert('위치를 가져올 수 없습니다: ' + err.message);
+          isTracking = false;
+          btn.classList.remove('tracking');
+          btn.innerHTML = '📍';
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+      );
+    }
+
+    // ── Panel Toggle ──
+    function collapsePanel(withReopenLock = false) {
+      const panel = document.getElementById('panel');
+      panel.classList.add('collapsed');
+      document.getElementById('openBtn').classList.add('visible');
+      if (withReopenLock) {
+        panelReopenLockUntil = Date.now() + 420;
+      }
+      updateCollapsedNavigator(activeDay);
+    }
+
+    function togglePanel() {
+      const panel = document.getElementById('panel');
+      if (panel.classList.contains('collapsed')) {
+        openPanel();
+      } else {
+        collapsePanel();
+      }
+    }
+
+    function openPanel() {
+      if (Date.now() < panelReopenLockUntil) return;
+      const panel = document.getElementById('panel');
+      panel.classList.remove('collapsed');
+      document.getElementById('openBtn').classList.remove('visible');
+      updateCollapsedNavigator(activeDay);
+    }
+
+    // ── Init: show all ──
+    showAll();
+  </script>
+</body>
+
+</html>
